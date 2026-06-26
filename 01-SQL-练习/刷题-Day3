@@ -1,0 +1,17 @@
+# 刷题记录 Day 3 | 2026-06-26
+
+## 今日目标
+- [x] 中等题12道
+
+## 通过题目
+SQL202, SQL203, SQL204, SQL206, SQL207, SQL209, SQL210, SQL215, SQL216, SQL221, SQL231, SQL232
+
+## 关键收获
+- LEFT JOIN显示所有部门，COUNT(右表字段)
+- 三表JOIN时 departments 放左边
+- DEFAULT (CURRENT_DATE) 括号语法
+- 字符串拼接 CONCAT / ||
+
+## 明日计划
+- 窗口函数入门
+- 练习题19-25

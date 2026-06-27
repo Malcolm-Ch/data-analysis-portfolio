@@ -1,0 +1,17 @@
+# 窗口函数学习记录 | 2026-06-27
+
+## 学习内容
+- ROW_NUMBER / RANK / DENSE_RANK
+- LAG / LEAD
+- SUM() OVER() 累计求和
+- NTH_VALUE
+- ROWS vs RANGE 区别
+
+## 关键笔记
+- ROWS按物理行，RANGE按逻辑值
+- NTH_VALUE需要加 ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+- ORDER BY + 窗口函数 = 累计效果
+
+## 明日计划
+- 牛客网刷题10-15道
+- 开始第一个完整项目

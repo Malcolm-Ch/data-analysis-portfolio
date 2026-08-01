@@ -1,0 +1,12 @@
+# Pandas学习记录 Day 1 - 基础操作 | 2026-08-01
+
+## 今日内容
+- DataFrame创建
+- 数据筛选
+- 分组聚合
+
+## 明日计划
+- 数据清洗（重复值、异常值）
+- 数据合并（merge、concat）
+- 透视表（pivot_table）
+- 可视化（Matplotlib）

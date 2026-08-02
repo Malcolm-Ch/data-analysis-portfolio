@@ -1,0 +1,18 @@
+# Pandas学习记录 Day 2 | 2026-08-02
+
+## 今日内容
+- 数据清洗：重复值、缺失值、异常值
+- 数据合并：merge、concat
+- 透视表：pivot_table
+
+## 关键收获
+- drop_duplicates() 去重
+- fillna() / dropna() 处理缺失
+- quantile() + IQR 检测异常值
+- merge() 类似SQL JOIN
+- concat() 纵向拼接
+- pivot_table() 多维分析
+
+## 明日计划
+- Matplotlib可视化
+- 综合项目实战

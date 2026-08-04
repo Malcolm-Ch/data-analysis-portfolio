@@ -1,0 +1,310 @@
+# 数据分析学习笔记 - Day 4
+
+**日期**: 2026-08-04  
+**主题**: Seaborn 进阶可视化 + 回归分析  
+**数据集**: employee_data.csv（300名员工，5个部门）
+
+---
+
+## 一、数据集说明
+
+| 字段 | 说明 |
+|------|------|
+| 员工ID | 唯一标识 |
+| 部门 | 技术部/销售部/财务部/人事部/运营部 |
+| 工龄 | 0-15年 |
+| 月薪 | 5000-30000元 |
+| 绩效评分 | 60-100分 |
+| 出勤率 | 85%-100% |
+| 完成项目数 | 1-20个 |
+| 是否晋升 | 是/否 |
+
+---
+
+## 二、散点图 Scatter
+
+### 基础散点图
+```python
+import pandas as pd
+import matplotlib.pyplot as plt
+
+df = pd.read_csv('employee_data.csv')
+
+plt.figure(figsize=(8,5))
+plt.scatter(df['工龄'], df['月薪'], alpha=0.6, color='#3498db')
+plt.title('工龄与月薪关系')
+plt.xlabel('工龄（年）')
+plt.ylabel('月薪（元）')
+plt.show()
+```
+
+### alpha 参数
+- `alpha=0` → 完全透明
+- `alpha=0.6` → 适中透明（推荐）
+- `alpha=1` → 完全不透明
+
+**作用**: 点重叠时颜色越深 = 数据越密集，一眼看出分布热点。
+
+---
+
+## 三、多子图布局 subplots
+
+### 2x2 子图（一页四图）
+```python
+fig, axes = plt.subplots(2, 2, figsize=(12, 10))  # 注意：subplots 带 s
+
+# 子图1: 工龄 vs 月薪
+axes[0,0].scatter(df['工龄'], df['月薪'], color='#3498db', alpha=0.6)
+axes[0,0].set_title('工龄 VS 月薪')
+
+# 子图2: 绩效 vs 项目数
+axes[0,1].scatter(df['绩效评分'], df['完成项目数'], color='#e74c3c', alpha=0.6)
+axes[0,1].set_title('绩效 VS 项目数')
+
+# 子图3: 各部门人数
+dept_counts = df['部门'].value_counts()
+axes[1,0].bar(dept_counts.index, dept_counts.values, color='#2ecc71')
+axes[1,0].set_title('各部门人数')
+axes[1,0].tick_params(axis='x', rotation=45)
+
+# 子图4: 出勤率分布
+axes[1,1].hist(df['出勤率'], bins=10, color='#f39c12', edgecolor='white')
+axes[1,1].set_title('出勤率分布')
+
+plt.tight_layout()  # 自动调整间距，防止重叠
+plt.show()
+```
+
+### ⚠️ 常见错误
+- `plt.subplot()` → 创建**单个**子图
+- `plt.subplots()` → 创建**多个**子图（复数，带 s）
+
+---
+
+## 四、Seaborn 箱线图 boxplot
+
+```python
+import seaborn as sns
+
+plt.figure(figsize=(10,6))
+sns.boxplot(data=df, x='部门', y='月薪', 
+            hue='部门',           # 新版 Seaborn 必须指定 hue
+            palette='Set2',       # 配色方案
+            legend=False)         # 隐藏图例（单数据时）
+plt.title('各部门薪资分布箱线图')
+plt.xticks(rotation=15)
+plt.show()
+```
+
+### 箱线图解读
+| 部位 | 含义 |
+|------|------|
+| 箱子中间横线 | **中位数**（50%的人在这个数以下）|
+| 箱子上沿 | **上四分位数 Q3**（75%的人在这个数以下）|
+| 箱子下沿 | **下四分位数 Q1**（25%的人在这个数以下）|
+| 箱子高度 | **IQR**（中间50%数据的分布范围）|
+| 须线 | 正常数据范围（Q1-1.5×IQR 到 Q3+1.5×IQR）|
+| 圆点 | **异常值**（超出正常范围的极端值）|
+
+### palette 配色方案
+```python
+palette='Set2'       # 柔和彩色（推荐）
+palette='coolwarm'   # 冷-暖色
+palette='Blues'      # 蓝色渐变
+palette='pastel'     # pastel 柔和色
+palette='dark'       # 深色
+```
+
+---
+
+## 五、Seaborn 热力图 heatmap
+
+### 基础热力图
+```python
+numeric_cols = ['工龄', '月薪', '绩效评分', '出勤率', '完成项目数']
+corr_matrix = df[numeric_cols].corr()
+
+plt.figure(figsize=(8, 6))
+sns.heatmap(corr_matrix, 
+            annot=True,           # 显示数值
+            fmt='.2f',            # 保留两位小数
+            cmap='RdYlBu_r',      # 红-黄-蓝配色（反向）
+            center=0,             # 以0为中心
+            square=True,          # 正方形格子
+            linewidths=0.5)       # 格子间距
+plt.title('员工各项指标相关性热力图')
+plt.show()
+```
+
+### 进阶：加入分类变量
+```python
+# 将"是否晋升"转为数字
+df['晋升数字'] = df['是否晋升'].map({'是': 1, '否': 0})
+
+numeric_cols2 = ['工龄', '月薪', '绩效评分', '完成项目数', '晋升数字']
+sns.heatmap(df[numeric_cols2].corr(), annot=True, fmt='.2f', cmap='RdYlBu_r')
+```
+
+### ⚠️ 常见陷阱：数据污染
+**错误做法**（覆盖原列）：
+```python
+df['是否晋升'] = df['是否晋升'].map({'是': 1, '否': 0})  # ❌ 覆盖原列
+df['晋升数字'] = df['是否晋升'].map({'是': 1, '否': 0})  # ❌ 此时列里已是1/0，map找不到"是/否"
+```
+
+**正确做法**：
+```python
+df['晋升数字'] = df['是否晋升'].map({'是': 1, '否': 0})  # ✅ 保留原列，创建新列
+```
+
+---
+
+## 六、Seaborn pairplot 散点图矩阵
+
+### 基础版
+```python
+sns.pairplot(df[['工龄', '月薪', '绩效评分', '完成项目数']], 
+             diag_kind='kde',   # 对角线显示核密度估计
+             plot_kws={'alpha': 0.6})  # 散点透明度
+plt.suptitle('员工指标散点图矩阵', y=1.02, fontsize=14)
+plt.show()
+```
+
+### 按部门着色
+```python
+sns.pairplot(df[['工龄', '月薪', '绩效评分', '完成项目数', '部门']], 
+             hue='部门',
+             diag_kind='kde',
+             palette='Set2',
+             plot_kws={'alpha': 0.7})
+plt.suptitle('各部门员工指标对比', y=1.02, fontsize=14)
+plt.show()
+```
+
+### 晋升 vs 未晋升对比
+```python
+sns.pairplot(df[['工龄', '月薪', '绩效评分', '是否晋升']], 
+             hue='是否晋升',
+             diag_kind='hist',
+             palette={'是': '#2ecc71', '否': '#e74c3c'})
+plt.suptitle('晋升 VS 未晋升员工对比', y=1.02, fontsize=14)
+plt.show()
+```
+
+### corner=True 简化布局
+```python
+sns.pairplot(df[['工龄', '月薪', '绩效评分']], 
+             corner=True,      # 只画左下角，不重复
+             diag_kind='kde')
+plt.show()
+```
+
+---
+
+## 七、Seaborn regplot 回归拟合散点图
+
+### 基础线性拟合
+```python
+sns.regplot(data=df, x='工龄', y='月薪', 
+            scatter_kws={'alpha': 0.5, 'color': '#3498db'},
+            line_kws={'color': '#e74c3c', 'linewidth': 2})
+plt.title('工龄与月薪关系（含线性拟合）')
+plt.show()
+```
+
+### 多项式曲线拟合
+```python
+sns.regplot(data=df, x='工龄', y='月薪', order=2,  # 二次多项式
+            scatter_kws={'alpha': 0.5, 'color': '#3498db'},
+            line_kws={'color': '#e74c3c', 'linewidth': 2})
+plt.show()
+```
+
+### 按部门分组回归
+```python
+plt.figure(figsize=(10, 6))
+
+for dept in df['部门'].unique():
+    subset = df[df['部门'] == dept]
+    sns.regplot(data=subset, x='工龄', y='月薪',
+                scatter_kws={'alpha': 0.4, 's': 30},
+                line_kws={'linewidth': 2},
+                ci=None,              # 去掉置信区间阴影
+                label=dept)
+
+plt.legend(title='部门')
+plt.title('各部门工龄与月薪关系')
+plt.show()
+```
+
+### regplot 关键参数
+| 参数 | 作用 |
+|------|------|
+| `scatter_kws` | 控制**散点**样式（字典传参） |
+| `line_kws` | 控制**拟合线**样式（字典传参） |
+| `ci=95` | 置信区间，默认95% |
+| `ci=None` | 去掉置信区间阴影 |
+| `order=2` | 多项式拟合（曲线） |
+
+---
+
+## 八、今日核心发现（员工数据分析）
+
+### 热力图相关性分析
+| 相关对 | 系数 | 结论 |
+|--------|------|------|
+| 工龄 ↔ 月薪 | **0.87** | 强正相关，工龄越长月薪越高 |
+| 工龄 ↔ 绩效 | **0.76** | 强正相关，老员工绩效更好 |
+| 绩效 ↔ 项目数 | **0.64** | 中等正相关 |
+| 出勤率 ↔ 任何指标 | ≈ 0 | **完全无关** |
+
+### 晋升分析
+| 晋升数字与... | 相关系数 | 结论 |
+|-------------|---------|------|
+| 绩效评分 | **0.40** | 绩效是晋升的最强预测因子 |
+| 工龄 | 0.38 | 资历有帮助，但不如绩效重要 |
+| 月薪 | 0.32 | 高薪≠高晋升概率 |
+| 完成项目数 | 0.24 | 项目数量本身不是晋升关键 |
+
+> **晋升核心逻辑：绩效 > 工龄 > 月薪 > 项目数。出勤率完全不影响晋升。**
+
+### 各部门薪资（箱线图）
+- **技术部**：薪资最高，中位数接近 20000，分布较宽
+- **人事部**：薪资最低，整体偏低
+- **销售部/运营部**：中等水平，分布集中
+- **财务部**：中等偏上，薪资差异小
+
+### 复购分析（昨日项目修正）
+- 复购率仅 **11.3%**
+- 总用户数: 1757，复购用户: 198
+- 用户留存有较大提升空间
+
+---
+
+## 十、明日计划
+
+**Pandas 进阶三件套**
+1. `pivot_table` 数据透视表
+2. `merge` / `concat` 多表关联
+3. `groupby` 高级聚合（`transform`、`agg`）
+
+---
+
+## 附录：完整技能清单
+
+| 技能 | 状态 |
+|------|------|
+| `plt.scatter()` + `alpha` 透明度 | ✅ |
+| `plt.subplots()` 多子图布局 | ✅ |
+| `sns.boxplot()` + `hue` + `palette` | ✅ |
+| `sns.heatmap()` 相关性矩阵 | ✅ |
+| `sns.pairplot()` 散点图矩阵 | ✅ |
+| `sns.regplot()` 回归拟合 | ✅ |
+| `order=2` 多项式曲线拟合 | ✅ |
+| `for` 循环 + `regplot` 分组回归 | ✅ |
+| `scatter_kws` / `line_kws` 样式控制 | ✅ |
+| `ci=None` 去掉置信区间 | ✅ |
+| `corner=True` 简化布局 | ✅ |
+| `map()` 类别转数值 | ✅ |
+| 数据清洗（去重/去空/异常值）| ✅ |
+| 分组聚合 + 排序 | ✅ |

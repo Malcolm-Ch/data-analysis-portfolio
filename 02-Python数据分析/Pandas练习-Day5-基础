@@ -1,0 +1,284 @@
+# 数据分析学习笔记 - Day 3
+
+**日期**: 2026-08-05  
+**主题**: Pandas 进阶 — merge / pivot_table / groupby高级聚合 / transform  
+**数据集**: users.csv + products.csv + orders.csv（三表关联）
+
+---
+
+## 一、数据集说明
+
+| 文件 | 内容 | 行数 |
+|------|------|------|
+| users.csv | 用户ID、用户名、城市、会员等级 | 50 |
+| products.csv | 商品ID、商品名、类别、单价 | 20 |
+| orders.csv | 订单ID、用户ID、商品ID、日期、数量 | 300 |
+
+---
+
+## 二、merge 多表关联
+
+### 基础用法（left join）
+```python
+import pandas as pd
+
+users = pd.read_csv('users.csv')
+products = pd.read_csv('products.csv')
+orders = pd.read_csv('orders.csv')
+
+# Step 1: 订单表 + 用户表
+df = orders.merge(users, on='用户ID', how='left')
+
+# Step 2: 再 + 商品表
+df = df.merge(products, on='商品ID', how='left')
+
+# Step 3: 计算销售额
+df['销售额'] = df['单价'] * df['数量']
+
+print(df.head())
+```
+
+### merge 关键参数
+| 参数 | 说明 |
+|------|------|
+| `on='列名'` | 按哪列关联（两表列名相同） |
+| `left_on` / `right_on` | 两表列名不同时分别指定 |
+| `how='left'` | 左连接（保留左表所有行） |
+| `how='inner'` | 内连接（只保留匹配的行） |
+| `how='outer'` | 外连接（保留所有行） |
+
+---
+
+## 三、pivot_table 数据透视表
+
+### 基础用法
+```python
+pivot = df.pivot_table(
+    values='销售额',      # 要汇总的值
+    index='城市',         # 行
+    columns='类别',       # 列
+    aggfunc='sum',        # 汇总方式
+    fill_value=0          # 空值填0
+)
+
+print(pivot)
+
+# 可视化
+pivot.plot(kind='bar', figsize=(10, 6))
+plt.title('各城市各类别销售额')
+plt.ylabel('销售额（元）')
+plt.show()
+```
+
+### 进阶：会员等级 × 城市
+```python
+pivot = df.pivot_table(
+    values='销售额',
+    index='会员等级',
+    columns='城市',
+    aggfunc='sum',
+    fill_value=0
+)
+```
+
+### pivot_table 关键参数
+| 参数 | 说明 |
+|------|------|
+| `values` | 要聚合的数据列 |
+| `index` | 行标签 |
+| `columns` | 列标签 |
+| `aggfunc` | 聚合函数（sum/mean/count/max/min） |
+| `fill_value` | 填充空值 |
+| `margins=True` | 添加行列总计 |
+
+---
+
+## 四、groupby 高级聚合
+
+### agg 多函数聚合
+```python
+city_stats = df.groupby('城市').agg({
+    '销售额': ['sum', 'mean', 'count'],
+    '数量': 'sum'
+})
+
+print(city_stats)
+```
+
+### rank 组内排名
+```python
+# 每个城市里，按销售额排名
+df['城市内排名'] = df.groupby('城市')['销售额'].rank(ascending=False, method='min')
+
+# method='min' → 并列时取最小排名（1, 2, 2, 4）
+# method='dense' → 并列时排名连续（1, 2, 2, 3）
+```
+
+### 多列分组
+```python
+# ❌ 错误：逗号分隔
+df.groupby('城市', '会员等级')
+
+# ✅ 正确：列表传参
+df.groupby(['城市', '会员等级'])
+```
+
+---
+
+## 五、transform 组内广播
+
+### 核心区别
+
+| 方法 | 返回结果 | 行数 | 用途 |
+|------|---------|------|------|
+| `transform('sum')` | Series（广播值） | 与原表相同 | 在原表上加新列 |
+| `aggregate('sum')` | DataFrame（汇总） | 等于组数 | 只看汇总结果 |
+
+### 计算城市占比
+```python
+# 每个城市-会员等级的销售额
+city_level_total = df.groupby(['城市', '会员等级'])['销售额'].transform('sum')
+
+# 每个城市的总销售额
+city_total = df.groupby('城市')['销售额'].transform('sum')
+
+# 占比（直接赋值给原表）
+df['等级城市占比'] = city_level_total / city_total * 100
+```
+
+### 为什么不能用 aggregate？
+```python
+# ❌ 错误：返回7行，无法赋给300行的原表
+city_total = df.groupby('城市').aggregate({'销售额': 'sum'})
+df['占比'] = df['销售额'] / city_total  # 长度不匹配！
+
+# ✅ 正确：transform返回300行
+city_total = df.groupby('城市')['销售额'].transform('sum')
+df['占比'] = df['销售额'] / city_total
+```
+
+---
+
+## 六、综合挑战：三维分析
+
+### 任务①：会员等级 × 城市 透视表
+```python
+pivot = df.pivot_table(
+    values='销售额',
+    index='会员等级',
+    columns='城市',
+    aggfunc='sum',
+    fill_value=0
+)
+```
+
+### 任务②：transform 计算等级城市占比
+```python
+city_level_total = df.groupby(['城市', '会员等级'])['销售额'].transform('sum')
+city_total = df.groupby('城市')['销售额'].transform('sum')
+df['等级城市占比'] = city_level_total / city_total * 100
+```
+
+### 任务③：各城市各等级最爱的类别TOP1
+```python
+cat_pref = df.groupby(['城市', '会员等级', '类别'])['销售额'].sum().reset_index()
+cat_pref['类别排名'] = cat_pref.groupby(['城市', '会员等级'])['销售额'].rank(
+    ascending=False, method='min'
+)
+top1 = cat_pref[cat_pref['类别排名'] == 1]
+```
+
+### 任务④：会员等级 × 类别 热力图
+```python
+pivot2 = df.pivot_table(
+    values='销售额',
+    index='会员等级',
+    columns='类别',
+    aggfunc='sum'
+)
+
+plt.figure(figsize=(8, 5))
+sns.heatmap(pivot2, annot=True, fmt='.0f', cmap='YlOrRd')
+plt.title('会员等级 × 类别 销售额热力图')
+plt.show()
+```
+
+---
+
+## 七、核心发现
+
+### 会员等级 × 城市分析
+| 发现 | 数据支撑 |
+|------|---------|
+| 上海普通会员贡献最大（17.6万） | 但金卡/银卡/钻石几乎为0 |
+| 北京高等级会员活跃 | 银卡3万 + 金卡7.5万 |
+| 苏州钻石会员亮眼（6.7万） | 苏州有消费能力强的核心用户 |
+| 上海普通会员占城市97.76% | 高等级会员挖掘空间巨大 |
+| 苏州普通会员仅占33.94% | 会员结构更健康 |
+
+### 类别偏好分析
+| 发现 | 数据支撑 |
+|------|---------|
+| 手机数码是绝对王者 | 几乎所有城市×等级的TOP1 |
+| 广州金卡例外 | 最爱服装鞋包（仅995元） |
+| 杭州金卡例外 | 最爱美妆护肤（1.2万） |
+| 家居日用全等级低迷 | 2500-7000，可考虑换品 |
+
+### 会员等级 × 类别热力图
+| 等级 | 手机数码 | 其他类别 |
+|------|---------|---------|
+| 普通 | 43.5万（绝对主力） | 均低于5万 |
+| 银卡 | 19.8万 | 美妆护肤3万 |
+| 钻石 | 10.2万 | 服装鞋包1.2万 |
+| 金卡 | 8.9万 | 美妆护肤2.6万 |
+
+---
+
+## 八、常见错误汇总
+
+| 错误 | 原因 | 修正 |
+|------|------|------|
+| `groupby('城市', '会员等级')` | 多列分组必须用列表 | `groupby(['城市', '会员等级'])` |
+| `df.unique()` | unique是Series方法 | `df['列'].unique()` 或 `df.drop_duplicates()` |
+| transform vs aggregate混淆 | 返回形状不同 | 要广播用transform，要汇总用aggregate |
+| merge后列名冲突 | 两表有同名列 | 用 `suffixes=('_左', '_右')` |
+
+---
+
+## 九、完整技能清单（三天累计）
+
+### Day 1：基础可视化 + 数据清洗
+- `plt.bar()` / `plt.plot()` / `plt.scatter()`
+- `plt.title()` / `plt.xlabel()` / `plt.ylabel()`
+- `plt.legend()` / `plt.xticks(rotation=)`
+- `df.drop_duplicates()` / `df.dropna(subset=)`
+- `df.groupby().agg()` / `df.sort_values()`
+- `f-string` 格式化输出
+
+### Day 2：Seaborn 进阶 + 回归分析
+- `sns.boxplot()` + `hue` + `palette`
+- `sns.heatmap()` + `annot` + `cmap`
+- `sns.pairplot()` + `corner=True`
+- `sns.regplot()` + `order=2` + `scatter_kws` / `line_kws`
+- `alpha` 透明度 / `plt.subplots()` 多子图
+- `map()` 类别转数值
+
+### Day 3：Pandas 进阶
+- `merge()` 多表关联
+- `pivot_table()` 数据透视
+- `groupby().agg()` 多函数聚合
+- `groupby().rank()` 组内排名
+- `transform()` 组内广播
+- `reset_index()` 转换回DataFrame
+- `drop_duplicates()` 去重
+
+---
+
+## 十、下一步计划
+
+**待学习内容**：
+1. `pd.crosstab` 交叉表（pivot_table简化版）
+2. `pd.concat` 多表拼接
+3. 时间序列分析（resample、rolling）
+4. 数据导出 Excel（`to_excel`）
+
